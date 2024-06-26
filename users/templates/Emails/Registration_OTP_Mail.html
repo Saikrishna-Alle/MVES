@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Your Account</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #ffffff;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .logo img {
+            max-width: 150px;
+            height: auto;
+        }
+        .content {
+            padding: 20px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            color: #777;
+        }
+        .activation-link {
+            text-align: center;
+            padding: 20px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+        }
+        h2 {
+            color: #333;
+        }
+        p {
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://bdnt.in/assets/img/logo.jpeg" alt="BDnT Labs Logo">
+        </div>
+        <div class="content">
+            <h2>Activate Your Account</h2>
+            <p>Hello {{ first_name }} {{ last_name }},</p>
+            <p>Thank you for registering with us. Please click the link below to activate your account:</p>
+            <div class="activation-link">
+                <a href="{{ activation_link }}" target="_blank">Activate Account</a>
+            </div>
+            <p>If you did not initiate this registration, please ignore this email.</p>
+            <p>Best regards,</p>
+            <p>Visionary Team</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2024 Visionary Team. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
