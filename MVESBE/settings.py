@@ -45,7 +45,7 @@ PRE_INSTALLED_APPS = [
 
 
 CUSTOM_INSTALLED_APPS = [
-    'users',
+    'users.apps.UsersConfig',
     'corsheaders',
     'rest_framework',
     'rest_framework.authtoken',

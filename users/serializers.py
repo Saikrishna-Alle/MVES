@@ -19,12 +19,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ['email', 'password', 'first_name', 'last_name']
 
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+        try:
+            user = User.objects.create_user(**validated_data)
+        except ValueError as e:
+            raise serializers.ValidationError({'password': e.args[0]})
 
-        # Create Activation Token
         token = ActivationToken.objects.create(user=user)
 
-        # Send Activation Email
         self.send_activation_email(user, token.token)
 
         return user

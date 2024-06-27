@@ -55,3 +55,10 @@ class ActivationToken(models.Model):
         if not self.pk:
             self.expires_at = timezone.now() + timedelta(hours=1)
         super().save(*args, **kwargs)
+
+
+class Profiles(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, primary_key=True)
+    phoneNumber = models.IntegerField(blank=True)
+    address = models.CharField(max_length=500, blank=True)
+    gender = models.CharField(max_length=500, blank=True)
