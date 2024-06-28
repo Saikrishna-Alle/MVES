@@ -4,6 +4,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 import uuid
 from users.managers import CustomUserManager
+import random
+import string
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -58,7 +60,72 @@ class ActivationToken(models.Model):
 
 
 class Profiles(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, primary_key=True)
-    phoneNumber = models.IntegerField(blank=True)
-    address = models.CharField(max_length=500, blank=True)
-    gender = models.CharField(max_length=500, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    phone_number = models.CharField(
+        max_length=20, blank=True, null=True, unique=True)
+    address = models.TextField(blank=True, null=True)
+    gender = models.CharField(max_length=10, blank=True, null=True)
+    profile_picture = models.ImageField(
+        upload_to='profile_pictures/', blank=True, null=True)
+    created_on = models.DateTimeField(auto_now_add=True, null=True)
+    updated_on = models.DateTimeField(auto_now=True, null=True)
+
+
+class Staff(models.Model):
+    emp_id = models.CharField(max_length=7, primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    designation = models.CharField(max_length=100)
+    exp_level = models.IntegerField(default=0)
+    created_on = models.DateTimeField(auto_now_add=True, null=True)
+    updated_on = models.DateTimeField(auto_now=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.emp_id:
+            last_staff = Staff.objects.order_by('-emp_id').first()
+            if last_staff:
+                last_id = int(last_staff.emp_id[4:])
+                new_id = f'MVES{str(last_id + 1).zfill(3)}'
+            else:
+                new_id = 'MVES001'
+            self.emp_id = new_id
+
+        super().save(*args, **kwargs)
+
+
+class Vendor(models.Model):
+    id = models.CharField(
+        max_length=9, unique=True, blank=True, primary_key=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    shop_type = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    gstin_number = models.CharField(max_length=50, blank=True, null=True)
+    business_license = models.CharField(max_length=255, blank=True, null=True)
+    website_url = models.URLField(blank=True, null=True)
+    ratings = models.DecimalField(max_digits=3, decimal_places=2, default=0.0)
+    created_on = models.DateTimeField(auto_now_add=True, null=True)
+    updated_on = models.DateTimeField(auto_now=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if not self.id:
+            self.id = self.generate_vendor_id()
+        super().save(*args, **kwargs)
+
+    def generate_vendor_id(self):
+        base_id = ''.join(e for e in self.name if e.isalnum()).upper()
+        if len(base_id) < 3:
+            base_id = base_id.ljust(3, 'X')
+        else:
+            base_id = base_id[:3]
+
+        random_part = ''.join(random.choices(base_id + string.digits, k=6))
+        unique_id = base_id + random_part
+
+        while Vendor.objects.filter(id=unique_id).exists():
+            random_part = ''.join(random.choices(base_id + string.digits, k=6))
+            unique_id = base_id + random_part
+
+        return unique_id
