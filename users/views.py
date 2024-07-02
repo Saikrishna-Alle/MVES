@@ -1,5 +1,4 @@
-from django.forms import ValidationError
-from rest_framework import status, generics
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -8,14 +7,13 @@ from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
 
-from users.models import ActivationToken
-from users.serializers import ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, UserRegistrationSerializer
+from users.models import ActivationToken, Profiles
+from users.serializers import ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, UserRegistrationSerializer, UserSerializer
 from django.utils import timezone
 from users.models import UserRoles
 from django.contrib.auth import authenticate, update_session_auth_hash
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.authtoken.models import Token
-from django.contrib.auth.tokens import default_token_generator
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
@@ -169,9 +167,11 @@ class PostView(APIView):
 
 
 class GetView(APIView):
-    def get(self, request, action, uidb64=None, token=None):
+    def get(self, request, action, uidb64=None, token=None, pk=None):
         if action == 'activate':
             return self.Activation(request, uidb64, token)
+        if action == 'userdetails':
+            return self.userdetails(request, pk)
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -192,31 +192,31 @@ class GetView(APIView):
         except (User.DoesNotExist, ActivationToken.DoesNotExist):
             return Response({"detail": "Invalid activation link."}, status=status.HTTP_400_BAD_REQUEST)
 
-
-class ResetPasswordView(generics.GenericAPIView):
-    serializer_class = ResetPasswordSerializer
-
-    def post(self, request, uidb64, token):
+    @ permission_classes([IsAuthenticated])
+    def userdetails(self, request, pk=None):
+        user_id = request.user.id
         try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-            token_instance = ActivationToken.objects.get(
-                user=user, token=token, token_type='password_reset')
+            user_role = UserRoles.objects.get(user_id=user_id)
+        except UserRoles.DoesNotExist:
+            return Response({"error": "User role not found."}, status=status.HTTP_404_NOT_FOUND)
+        if pk:
+            if user_role.user_type == 'vendor':
+                pass
+            if user_role.user_type in ["admin", "owner"]:
+                pass
+            pass
+        else:
+            if user_role.user_type == 'customer':
+                try:
+                    user = User.objects.select_related(
+                        'profiles', 'staff').get(id=user_id)
+                except User.DoesNotExist:
+                    return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            if token_instance.expires_at < timezone.now():
-                return Response({"detail": "Password reset link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+                serializer = UserSerializer(user)
+                return Response(serializer.data)
 
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
-            # Update user's password
-            user.set_password(serializer.validated_data['new_password'])
-            user.save()
-
-            # Delete the used token
-            token_instance.delete()
-
-            return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
-
-        except (User.DoesNotExist, ActivationToken.DoesNotExist) as e:
-            return Response({"detail": "Invalid reset password link."}, status=status.HTTP_400_BAD_REQUEST)
+            if user_role.user_type == 'vendor':
+                pass
+            if user_role.user_type in ["admin", "owner"]:
+                pass

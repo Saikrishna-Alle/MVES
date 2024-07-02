@@ -39,7 +39,8 @@ class UserRoles(models.Model):
         ('admin', 'admin'),
         ('owner', 'owner')
     ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, primary_key=True)
     user_type = models.CharField(
         max_length=25, choices=user_roles, default='customer')
 
@@ -70,7 +71,8 @@ class ActivationToken(models.Model):
 
 
 class Profiles(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, unique=True, primary_key=True)
     phone_number = models.CharField(
         max_length=40, blank=True, null=True, unique=True)
     address = models.TextField(blank=True, null=True)
@@ -105,7 +107,7 @@ class Staff(models.Model):
 class Vendor(models.Model):
     id = models.CharField(
         max_length=9, unique=True, blank=True, primary_key=True)
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     phone = models.CharField(max_length=40)
     email = models.EmailField(blank=True, null=True)

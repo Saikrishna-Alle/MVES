@@ -1,3 +1,4 @@
+from .models import Profiles, User, UserRoles
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -7,7 +8,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils.html import strip_tags
 from django.utils.encoding import force_bytes
-from .models import ActivationToken
+from .models import ActivationToken, Staff, Vendor
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 
@@ -129,3 +130,33 @@ class ResetPasswordSerializer(serializers.Serializer):
     def validate(self, data):
         validate_password(data['new_password'])
         return data
+
+
+class ProfilesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profiles
+        fields = ('phone_number', 'address', 'gender', 'profile_picture')
+
+
+class StaffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Staff
+        fields = ('emp_id', 'designation', 'exp_level')
+
+
+class UserSerializer(serializers.ModelSerializer):
+    user_type = serializers.SerializerMethodField()
+    profile = ProfilesSerializer(source='profiles', read_only=True)
+    staff = StaffSerializer(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ('id', 'first_name', 'last_name', 'email',
+                  'updated_on', 'last_login', 'user_type', 'profile', 'staff')
+
+    def get_user_type(self, obj):
+        try:
+            user_role = UserRoles.objects.get(user=obj)
+            return user_role.user_type
+        except UserRoles.DoesNotExist:
+            return None
