@@ -48,21 +48,31 @@ class UserRoles(models.Model):
 
 
 class ActivationToken(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    TOKEN_TYPES = (
+        ('activation', 'Activation'),
+        ('password_reset', 'Password Reset'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
+    token_type = models.CharField(
+        max_length=20, choices=TOKEN_TYPES)
 
     def save(self, *args, **kwargs):
         if not self.pk:
-            self.expires_at = timezone.now() + timedelta(hours=1)
+            if self.token_type == 'activation':
+                self.expires_at = timezone.now() + timedelta(hours=1)
+            elif self.token_type == 'password_reset':
+                self.expires_at = timezone.now() + timedelta(hours=1)
         super().save(*args, **kwargs)
 
 
 class Profiles(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     phone_number = models.CharField(
-        max_length=20, blank=True, null=True, unique=True)
+        max_length=40, blank=True, null=True, unique=True)
     address = models.TextField(blank=True, null=True)
     gender = models.CharField(max_length=10, blank=True, null=True)
     profile_picture = models.ImageField(
@@ -97,7 +107,7 @@ class Vendor(models.Model):
         max_length=9, unique=True, blank=True, primary_key=True)
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=40)
     email = models.EmailField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     shop_type = models.CharField(max_length=100)

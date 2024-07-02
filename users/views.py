@@ -1,31 +1,41 @@
-from rest_framework import status
+from django.forms import ValidationError
+from rest_framework import status, generics
 from rest_framework.views import APIView
+from rest_framework.decorators import permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode
 from django.utils.encoding import force_str
-from .models import ActivationToken
-from .serializers import UserRegistrationSerializer
+
+from users.models import ActivationToken
+from users.serializers import ChangePasswordSerializer, ForgotPasswordSerializer, ResetPasswordSerializer, UserRegistrationSerializer
 from django.utils import timezone
-from django.conf import settings
 from users.models import UserRoles
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, update_session_auth_hash
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.authtoken.models import Token
+from django.contrib.auth.tokens import default_token_generator
 from django.utils import timezone
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
 
 class PostView(APIView):
-    def post(self, request, action):
+    def post(self, request, action, uidb64=None, token=None):
         if action == 'registration':
             return self.Registration(request)
         elif action == 'login':
             return self.user_login(request)
         elif action == 'logout':
             return self.user_logout(request)
+        elif action == 'changepassword':
+            return self.changepassword(request)
+        elif action == 'forgetpassword':
+            return self.forgetpassword(request)
+        elif action == 'resetpassword':
+            return self.resetpassword(request, uidb64, token)
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -102,6 +112,61 @@ class PostView(APIView):
         except Exception as e:
             return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @ permission_classes([IsAuthenticated])
+    def changepassword(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = request.user
+
+            if not user.check_password(serializer.validated_data['old_password']):
+                return Response({"message": "Inavalid old Password."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if request.data.get("new_password") != request.data.get("confirm_new_password"):
+                return Response({"message": "New passwords must match."}, status=status.HTTP_400_BAD_REQUEST)
+
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+
+            update_session_auth_hash(request, user)
+
+            return Response({"detail": "Password has been changed successfully."}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def forgetpassword(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            token = serializer.save()
+            return Response({"message": "Password reset link has been sent to your email."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def resetpassword(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+            token_instance = ActivationToken.objects.get(
+                user=user, token=token, token_type='password_reset')
+
+            if token_instance.expires_at < timezone.now():
+                return Response({"detail": "Password reset link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = ResetPasswordSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            if request.data.get("new_password") != request.data.get("confirm_new_password"):
+                return Response({"message": "New passwords must match."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update user's password
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            token_instance.delete()
+
+            return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
+
+        except (User.DoesNotExist, ActivationToken.DoesNotExist) as e:
+            return Response({"detail": "Invalid reset password link."}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class GetView(APIView):
     def get(self, request, action, uidb64=None, token=None):
@@ -115,7 +180,7 @@ class GetView(APIView):
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
             token_instance = ActivationToken.objects.get(
-                user=user, token=token)
+                user=user, token=token, token_type='activation')
 
             if token_instance.expires_at < timezone.now():
                 return Response({"detail": "Activation link expired."}, status=status.HTTP_400_BAD_REQUEST)
@@ -126,3 +191,32 @@ class GetView(APIView):
             return Response({"detail": "Account activated successfully."}, status=status.HTTP_200_OK)
         except (User.DoesNotExist, ActivationToken.DoesNotExist):
             return Response({"detail": "Invalid activation link."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordView(generics.GenericAPIView):
+    serializer_class = ResetPasswordSerializer
+
+    def post(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+            token_instance = ActivationToken.objects.get(
+                user=user, token=token, token_type='password_reset')
+
+            if token_instance.expires_at < timezone.now():
+                return Response({"detail": "Password reset link has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            # Update user's password
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+
+            # Delete the used token
+            token_instance.delete()
+
+            return Response({"detail": "Password reset successfully."}, status=status.HTTP_200_OK)
+
+        except (User.DoesNotExist, ActivationToken.DoesNotExist) as e:
+            return Response({"detail": "Invalid reset password link."}, status=status.HTTP_400_BAD_REQUEST)
