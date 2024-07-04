@@ -167,6 +167,8 @@ class PostView(APIView):
 
 
 class GetView(APIView):
+    serializer_class = UserSerializer
+
     def get(self, request, action, uidb64=None, token=None, pk=None):
         if action == 'activate':
             return self.Activation(request, uidb64, token)
@@ -194,29 +196,38 @@ class GetView(APIView):
 
     @ permission_classes([IsAuthenticated])
     def userdetails(self, request, pk=None):
-        user_id = request.user.id
         try:
+            user_id = request.user.id
             user_role = UserRoles.objects.get(user_id=user_id)
         except UserRoles.DoesNotExist:
-            return Response({"error": "User role not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': "You're not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            pk_instance = User.objects.get(id=pk)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        if user_role.user_type not in ['customer', 'vendor', 'admin', 'owner']:
+            return Response({'message': 'Provide valid user role'}, status=status.HTTP_400_BAD_REQUEST)
         if pk:
-            if user_role.user_type == 'vendor':
+            if request.user.email == pk_instance.email:
                 pass
-            if user_role.user_type in ["admin", "owner"]:
+            elif user_role.user_type in ['admin', 'owner']:
                 pass
-            pass
+            else:
+                return Response({'message': "You're not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)
+            try:
+                user = User.objects.select_related(
+                    'userroles', 'profiles', 'staff'
+                ).prefetch_related('vendors').get(pk=pk)
+                serializer = self.serializer_class(user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         else:
-            if user_role.user_type == 'customer':
-                try:
-                    user = User.objects.select_related(
-                        'profiles', 'staff').get(id=user_id)
-                except User.DoesNotExist:
-                    return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
-                serializer = UserSerializer(user)
-                return Response(serializer.data)
-
-            if user_role.user_type == 'vendor':
-                pass
-            if user_role.user_type in ["admin", "owner"]:
-                pass
+            if user_role.user_type in ['admin', 'owner']:
+                users = User.objects.select_related(
+                    'userroles', 'profiles', 'staff'
+                ).prefetch_related('vendors').all()
+                serializer = self.serializer_class(users, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'message': "You're not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)

@@ -107,7 +107,8 @@ class Staff(models.Model):
 class Vendor(models.Model):
     id = models.CharField(
         max_length=9, unique=True, blank=True, primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='vendors')
     name = models.CharField(max_length=255)
     phone = models.CharField(max_length=40)
     email = models.EmailField(blank=True, null=True)

@@ -132,31 +132,38 @@ class ResetPasswordSerializer(serializers.Serializer):
         return data
 
 
+# user_type = serializers.CharField(source='get_user_type_display', read_only=True)
+class UserRolesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserRoles
+        fields = '__all__'
+
+
 class ProfilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profiles
-        fields = ('phone_number', 'address', 'gender', 'profile_picture')
+        fields = '__all__'
 
 
 class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
-        fields = ('emp_id', 'designation', 'exp_level')
+        fields = '__all__'
+
+
+class VendorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vendor
+        fields = '__all__'
 
 
 class UserSerializer(serializers.ModelSerializer):
-    user_type = serializers.SerializerMethodField()
-    profile = ProfilesSerializer(source='profiles', read_only=True)
+    # user_type = serializers.CharField(source='get_user_type_display', read_only=True)
+    userroles = UserRolesSerializer(read_only=True)
+    profiles = ProfilesSerializer(read_only=True)
     staff = StaffSerializer(read_only=True)
+    vendors = VendorSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
-        fields = ('id', 'first_name', 'last_name', 'email',
-                  'updated_on', 'last_login', 'user_type', 'profile', 'staff')
-
-    def get_user_type(self, obj):
-        try:
-            user_role = UserRoles.objects.get(user=obj)
-            return user_role.user_type
-        except UserRoles.DoesNotExist:
-            return None
+        exclude = ('groups', 'user_permissions', 'password')
