@@ -1,3 +1,4 @@
+from .models import User, UserRoles
 from .models import Profiles, User, UserRoles
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
@@ -133,36 +134,36 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 # user_type = serializers.CharField(source='get_user_type_display', read_only=True)
-class UserRolesSerializer(serializers.ModelSerializer):
+class NUserRolesSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserRoles
         fields = '__all__'
 
 
-class ProfilesSerializer(serializers.ModelSerializer):
+class NProfilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profiles
         fields = '__all__'
 
 
-class StaffSerializer(serializers.ModelSerializer):
+class NStaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
         fields = '__all__'
 
 
-class VendorSerializer(serializers.ModelSerializer):
+class NVendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
         fields = '__all__'
 
 
-class UserSerializer(serializers.ModelSerializer):
+class NUserSerializer(serializers.ModelSerializer):
     # user_type = serializers.CharField(source='get_user_type_display', read_only=True)
-    userroles = UserRolesSerializer(read_only=True)
-    profiles = ProfilesSerializer(read_only=True)
-    staff = StaffSerializer(read_only=True)
-    vendors = VendorSerializer(many=True, read_only=True)
+    userroles = NUserRolesSerializer(read_only=True)
+    profiles = NProfilesSerializer(read_only=True)
+    staff = NStaffSerializer(read_only=True)
+    vendors = NVendorSerializer(many=True, read_only=True)
 
     class Meta:
         model = User
