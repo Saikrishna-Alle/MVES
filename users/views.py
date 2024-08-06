@@ -24,19 +24,11 @@ class ActivateAccountView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ResendActivationEmailView(APIView):
-    def post(self, request):
-        serializer = ResendActivationEmailSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({'message': 'Activation email sent!'}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 class DeactivateUserView(APIView):
-    def post(self, request):
+    def post(self, request, user_id):
+        data = {'user_id': user_id}
         serializer = DeactivateUserSerializer(
-            data=request.data, context={'request': request})
+            data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'User deactivated successfully!'}, status=status.HTTP_200_OK)
@@ -44,12 +36,22 @@ class DeactivateUserView(APIView):
 
 
 class DeleteUserView(APIView):
-    def post(self, request):
+    def post(self, request, user_id):
+        data = {'user_id': user_id}
         serializer = DeleteUserSerializer(
-            data=request.data, context={'request': request})
+            data=data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({"message": "User deleted successfully."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResendActivationEmailView(APIView):
+    def post(self, request):
+        serializer = ResendActivationEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Activation email sent!'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
