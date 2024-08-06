@@ -4,7 +4,5 @@ from .views import CompleteAuthView
 urlpatterns = [
     path('auth/<str:action>/', CompleteAuthView.as_view(), name='auth'),
     path('auth/<str:action>/<uuid:token>/',
-         CompleteAuthView.as_view(), name='auth_by_token'),
-    path('auth/user/<str:action>/<uuid:userid>/',
-         CompleteAuthView.as_view(), name='auth_by_user')
+         CompleteAuthView.as_view(), name='auth_by_token')
 ]

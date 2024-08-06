@@ -8,7 +8,7 @@ from .serializers import (RegisterSerializer, ActivationSerializer, ResendActiva
 
 
 class CompleteAuthView(APIView):
-    def post(self, request, action, userid=None, *args, **kwargs):
+    def post(self, request, action, token=None, *args, **kwargs):
         if action == "register":
             return self.register(request)
         elif action == 'login':
@@ -18,7 +18,7 @@ class CompleteAuthView(APIView):
         elif action == 'resend-activation-email':
             return self.resend_activation_email(request)
         elif action == 'deactivate-user':
-            return self.deactivate_user(request, userid)
+            return self.deactivate_user(request, token)
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -28,9 +28,9 @@ class CompleteAuthView(APIView):
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, action, user_id=None, *args, **kwargs):
+    def delete(self, request, action, token=None, *args, **kwargs):
         if action == 'delete-user':
-            return self.delete_user(request, user_id)
+            return self.delete_user(request, token)
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -59,8 +59,8 @@ class CompleteAuthView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @permission_classes([IsAuthenticated])
-    def delete_user(self, request, user_id):
-        data = {'user_id': user_id}
+    def delete_user(self, request, token):
+        data = {'user_id': token}
         serializer = DeleteUserSerializer(
             data=data, context={'request': request})
         if serializer.is_valid():
@@ -76,9 +76,9 @@ class CompleteAuthView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @permission_classes([IsAuthenticated])
-    def deactivate_user(self, request, userid):
+    def deactivate_user(self, request, token):
         serializer = DeactivateUserSerializer(
-            data={'user_id': userid}, context={'request': request})
+            data={'user_id': token}, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'User deactivated successfully!'}, status=status.HTTP_200_OK)
