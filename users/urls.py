@@ -1,16 +1,10 @@
 from django.urls import path
-from .views import (RegisterView, ActivateAccountView, ResendActivationEmailView,
-                    DeactivateUserView, DeleteUserView, LoginView, LogoutView)
+from .views import CompleteAuthView
 
 urlpatterns = [
-    path('register/', RegisterView.as_view(), name='register'),
-    path('login/', LoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
-    path('activate/<uuid:token>/',
-         ActivateAccountView.as_view(), name='activate_account'),
-    path('resend-activation/',
-         ResendActivationEmailView.as_view(), name='resend_activation_email'),
-    path('deactivate/<uuid:user_id>/',
-         DeactivateUserView.as_view(), name='deactivate_user'),
-    path('delete/<uuid:user_id>/', DeleteUserView.as_view(), name='delete_user'),
+    path('auth/<str:action>/', CompleteAuthView.as_view(), name='auth'),
+    path('auth/<str:action>/<uuid:token>/',
+         CompleteAuthView.as_view(), name='auth_by_token'),
+    path('auth/user/<str:action>/<uuid:userid>/',
+         CompleteAuthView.as_view(), name='auth_by_user')
 ]

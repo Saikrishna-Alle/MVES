@@ -1,10 +1,4 @@
-import uuid
-from datetime import timedelta
-from django.utils import timezone
 from django.template.loader import render_to_string
-from .models import ActivationToken
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from django.utils.html import strip_tags
 from django.core.mail import send_mail
 
@@ -13,7 +7,7 @@ def send_activation_email(user, token):
     subject = 'Activate Your Account'
     from_email = 'no-reply@mves.com'
     to_email = user.email
-    activation_link = f'http://localhost:8000/activate/{token}/'
+    activation_link = f'http://localhost:8000/auth/activate-user/{token}/'
     context = {
         'first_name': user.first_name,
         'last_name': user.last_name,
