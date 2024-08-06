@@ -3,7 +3,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from datetime import timedelta
 from .models import User, ActivationToken, UserRoles
-from .utils import generate_token, generate_expiry, validate_token, send_activation_email
+from .utils import send_activation_email
 from rest_framework.authtoken.models import Token
 
 
@@ -99,55 +99,62 @@ class ResendActivationEmailSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "This account is already activated.")
 
+        data['user'] = user
         return data
 
-    def save(self):
-        email = self.validated_data['email']
-        user = User.objects.get(email=email)
-        ActivationToken.objects.filter(user=user).delete()
-        token = generate_token()
-        ActivationToken.objects.create(
-            user=user, token=token, expiry=generate_expiry())
-        send_activation_email(user, token)
+    def save(self, **kwargs):
+        user = self.validated_data['user']
+        ActivationToken.objects.filter(
+            user=user, token_type='activation').delete()
+
+        token = ActivationToken.objects.create(
+            user=user, token_type='activation')
+
+        send_activation_email(user, token.token)
+        return {'message': 'Activation email sent!'}
 
 
 class DeactivateUserSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    user_id = serializers.UUIDField()
 
-    def _has_permission_to_register(self, user_role, user_type):
+    def _has_permission_to_deactivate(self, user_role, target_user_type):
         if not user_role:
             return False
 
-        if user_type == 'vendor' and user_role.user_type in ['admin', 'owner']:
+        if target_user_type == 'customer' and user_role.user_type in ['admin', 'owner']:
             return True
-        if user_type == 'admin' and user_role.user_type == 'owner':
+        if target_user_type == 'vendor' and user_role.user_type in ['admin', 'owner']:
             return True
-        if user_type == 'owner' and user_role.user_type == 'owner':
+        if target_user_type == 'admin' and user_role.user_type == 'owner':
+            return True
+        if target_user_type == 'owner' and user_role.user_type == 'owner':
             return True
         return False
 
     def validate(self, data):
-        email = data['email']
+        user_id = data['user_id']
+        request_user = self.context['request'].user
+
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             raise serializers.ValidationError(
-                "User with this email does not exist.")
+                "User with this ID does not exist.")
 
         if not user.is_active:
             raise serializers.ValidationError(
                 "This account is already deactivated.")
-
-        user_role = self.context['request'].user.userroles if self.context['request'].user.is_authenticated else None
-        if not self._has_permission_to_register(user_role, user.userroles.user_type):
-            raise serializers.ValidationError(
-                "You do not have permission to deactivate this user.")
+        if request_user != user:
+            user_role = request_user.userroles if request_user.is_authenticated else None
+            if not self._has_permission_to_deactivate(user_role, user.userroles.user_type):
+                raise serializers.ValidationError(
+                    "You do not have permission to deactivate this user.")
 
         return data
 
     def save(self):
-        email = self.validated_data['email']
-        user = User.objects.get(email=email)
+        user_id = self.validated_data['user_id']
+        user = User.objects.get(id=user_id)
         user.is_active = False
         user.save()
 

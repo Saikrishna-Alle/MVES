@@ -4,10 +4,6 @@ from rest_framework.views import APIView
 from .serializers import (RegisterSerializer, ActivationSerializer, ResendActivationEmailSerializer,
                           DeactivateUserSerializer, DeleteUserSerializer, LoginSerializer, LogoutSerializer)
 
-from django.shortcuts import get_object_or_404
-from .models import ActivationToken, User
-from .utils import send_activation_email
-
 
 class RegisterView(APIView):
     def post(self, request):
@@ -30,20 +26,11 @@ class ActivateAccountView(APIView):
 
 class ResendActivationEmailView(APIView):
     def post(self, request):
-        email = request.data.get('email')
-        user = get_object_or_404(User, email=email)
-        try:
-            token = ActivationToken.objects.get(
-                user=user, token_type='activation')
-            if token.is_expired():
-                token.delete()
-                token = ActivationToken.objects.create(
-                    user=user, token_type='activation')
-        except ActivationToken.DoesNotExist:
-            token = ActivationToken.objects.create(
-                user=user, token_type='activation')
-        send_activation_email(user, token.token)
-        return Response({'message': 'Activation email sent!'}, status=status.HTTP_200_OK)
+        serializer = ResendActivationEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Activation email sent!'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeactivateUserView(APIView):
@@ -52,7 +39,7 @@ class DeactivateUserView(APIView):
             data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "User deactivated successfully."}, status=status.HTTP_200_OK)
+            return Response({'message': 'User deactivated successfully!'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
