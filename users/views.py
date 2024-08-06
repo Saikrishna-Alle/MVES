@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import permission_classes
 from rest_framework.permissions import IsAuthenticated
-from .serializers import (RegisterSerializer, ActivationSerializer, ResendActivationEmailSerializer,
-                          DeactivateUserSerializer, DeleteUserSerializer, LoginSerializer, LogoutSerializer)
+from .serializers import (ChangePasswordSerializer, PasswordResetRequestSerializer, RegisterSerializer, ActivationSerializer, ResendActivationEmailSerializer,
+                          DeactivateUserSerializer, DeleteUserSerializer, LoginSerializer, LogoutSerializer, ResetPasswordSerializer)
 
 
 class CompleteAuthView(APIView):
@@ -19,6 +19,12 @@ class CompleteAuthView(APIView):
             return self.resend_activation_email(request)
         elif action == 'deactivate-user':
             return self.deactivate_user(request, token)
+        elif action == 'change-password':
+            return self.change_password(request)
+        elif action == 'password-reset-request':
+            return self.password_reset_request(request)
+        elif action == 'reset-password':
+            return self.reset_password(request, token)
         else:
             return Response({'message': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -89,4 +95,31 @@ class CompleteAuthView(APIView):
         if serializer.is_valid():
             serializer.activate_user(token)
             return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @permission_classes([IsAuthenticated])
+    def change_password(self, request):
+        serializer = ChangePasswordSerializer(
+            data=request.data, context={'request': request})
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response({'detail': 'Password changed successfully'}, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def password_reset_request(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'detail': 'Password reset email sent'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def reset_password(self, request, token):
+        serializer = ResetPasswordSerializer(
+            data=request.data, context={'token': token})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'detail': 'Password has been reset successfully'}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from datetime import timedelta
+from django.utils.translation import gettext_lazy as _
 from .models import User, ActivationToken, UserRoles
 from .utils import send_activation_email
 from rest_framework.authtoken.models import Token
@@ -55,7 +55,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         token = ActivationToken.objects.create(
             user=user, token_type='activation')
 
-        send_activation_email(user, token.token)
+        send_activation_email(user, token.token, 'activate-user',
+                              'Emails/Registration_OTP_Mail.html', "Activate Your Account")
 
         return user
 
@@ -71,7 +72,6 @@ class ActivationSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid activation token.")
 
         if activation_token.is_expired():
-            # Token is expired
             raise serializers.ValidationError("Activation token has expired.")
 
         return data
@@ -110,7 +110,8 @@ class ResendActivationEmailSerializer(serializers.Serializer):
         token = ActivationToken.objects.create(
             user=user, token_type='activation')
 
-        send_activation_email(user, token.token)
+        send_activation_email(user, token.token, 'activate-user',
+                              'Emails/Registration_OTP_Mail.html', "Activate Your Account")
         return {'message': 'Activation email sent!'}
 
 
@@ -218,3 +219,75 @@ class LogoutSerializer(serializers.Serializer):
     def save(self):
         user = self.context['request'].user
         Token.objects.filter(user=user).delete()
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        user = self.context['request'].user
+        if not user.check_password(data['old_password']):
+            raise serializers.ValidationError(
+                {'old_password': _('Old password is not correct')})
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError(
+                {'confirm_password': _('New passwords must match')})
+        return data
+
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        try:
+            user = User.objects.get(email=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError(
+                _('User with this email does not exist.'))
+        return value
+
+    def save(self):
+        user = User.objects.get(email=self.validated_data['email'])
+        ActivationToken.objects.filter(
+            user=user, token_type='password_reset').delete()
+
+        token = ActivationToken.objects.create(
+            user=user, token_type='password_reset')
+
+        send_activation_email(user, token.token, 'reset-password',
+                              'Emails/Password_Reset_Mail.html', "Reset Your Password")
+        return {'message': 'Activation email sent!'}
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(
+        write_only=True, style={'input_type': 'password'})
+    confirm_password = serializers.CharField(
+        write_only=True, style={'input_type': 'password'})
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError("Passwords do not match.")
+        return data
+
+    def save(self, **kwargs):
+        token = self.context['token']
+        try:
+            activation_token = ActivationToken.objects.get(
+                token=token, token_type='password_reset')
+        except ActivationToken.DoesNotExist:
+            raise serializers.ValidationError("Invalid or expired token.")
+
+        user = activation_token.user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        activation_token.delete()
+        return user
